@@ -1,0 +1,96 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState, type ReactNode } from "react";
+import { MainnetAccountContext, type AvnuSwapCommands, type MainnetSessionSnapshot, type PublicTransferCommands } from "./mainnet-account-context";
+import StarknetWalletControl from "./starknet-wallet-control";
+
+const primary = [
+  { href: "/app/", label: "OVERVIEW", mark: "01" },
+  { href: "/app/assets/", label: "ASSETS", mark: "02" },
+  { href: "/app/send/", label: "MOVE", mark: "03", routes: ["/app/send/", "/app/receive/", "/app/swap/"] },
+  { href: "/app/privacy/", label: "PRIVACY", mark: "04" },
+];
+
+const partner = [
+  { href: "/app/cards/", label: "CARDS" },
+  { href: "/app/payouts/", label: "PAYOUTS" },
+  { href: "/app/credit/", label: "CREDIT" },
+  { href: "/app/settings/", label: "SETTINGS" },
+];
+
+function routeActive(pathname: string, item: { href: string; routes?: string[] }) {
+  if (item.routes) return item.routes.some((route) => pathname.startsWith(route));
+  return item.href === "/app/" ? pathname === "/app" || pathname === "/app/" : pathname.startsWith(item.href);
+}
+
+export default function MainnetAppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const [session, setSession] = useState<MainnetSessionSnapshot | null>(null);
+  const [swapCommands, setSwapCommands] = useState<AvnuSwapCommands | null>(null);
+  const [transferCommands, setTransferCommands] = useState<PublicTransferCommands | null>(null);
+  const [briefDismissed, setBriefDismissed] = useState(true);
+  const liveRoute = primary.some((item) => routeActive(pathname, item));
+
+  useEffect(() => {
+    setBriefDismissed(window.localStorage.getItem("bb-app-brief") === "done");
+  }, []);
+
+  function dismissBrief() {
+    window.localStorage.setItem("bb-app-brief", "done");
+    setBriefDismissed(true);
+  }
+
+  return (
+    <MainnetAccountContext.Provider value={{ session, swapCommands, transferCommands }}>
+    <main className="mainnet-app">
+      <header className="mainnet-topbar">
+        <Link className="mainnet-brand" href="/" aria-label="Booty Bank home">
+          <img src="/brand/bootybank-mark-cream.svg" alt="" width="40" height="40" />
+          <span>BOOTY BANK</span>
+        </Link>
+        <div className="mainnet-network" aria-label="Required network"><span>NETWORK</span><b>STARKNET MAINNET</b></div>
+        <div className="mainnet-wallet"><StarknetWalletControl requiredNetwork="mainnet" onSessionChange={setSession} onSwapCommandsChange={setSwapCommands} onTransferCommandsChange={setTransferCommands} /></div>
+        <Link className="mainnet-exit" href="/">EXIT APP ×</Link>
+      </header>
+
+      <div className="mainnet-frame">
+        <aside className="mainnet-sidebar">
+          <nav aria-label="Mainnet account navigation">
+            {primary.map((item) => (
+              <Link key={item.href} href={item.href} className={routeActive(pathname, item) ? "active" : ""}>
+                <i>{item.mark}</i><span>{item.label}</span>
+              </Link>
+            ))}
+          </nav>
+          <div className="mainnet-partner-nav">
+            <span>PARTNER PRODUCTS</span>
+            {partner.map((item) => <Link key={item.href} href={item.href} className={routeActive(pathname, item) ? "active" : ""}>{item.label}<i>↗</i></Link>)}
+          </div>
+          <div className="mainnet-truth"><span>ACCOUNT MODEL</span><b>SELF-CUSTODIAL</b><small>EVERY LIVE AMOUNT COMES FROM YOUR CONNECTED WALLET.</small></div>
+        </aside>
+
+        <section className="mainnet-content">
+          {!briefDismissed && (
+            <div className="app-first-run" role="note">
+              <p><b>SELF-CUSTODIAL DEMO.</b> LIVE ROUTES READ YOUR CONNECTED WALLET, AND EVERY ACTION NEEDS YOUR APPROVAL THERE. PARTNER SURFACES SHOW SAMPLE DATA. NOT A BANK.</p>
+              <button onClick={dismissBrief}>GOT IT</button>
+            </div>
+          )}
+          <div className={`app-mode-chip${liveRoute ? " live" : ""}`} role="status">{liveRoute ? "LIVE / WALLET DATA" : "SAMPLE / DEMO DATA"}</div>
+          {children}
+        </section>
+      </div>
+
+      <nav className="mainnet-mobile-nav" aria-label="Mobile account navigation">
+        {primary.map((item) => (
+          <Link key={item.href} href={item.href} className={routeActive(pathname, item) ? "active" : ""}>
+            <i>{item.mark}</i><span>{item.label}</span>
+          </Link>
+        ))}
+      </nav>
+    </main>
+    </MainnetAccountContext.Provider>
+  );
+}
